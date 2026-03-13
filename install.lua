@@ -77,14 +77,23 @@ local function detect_platform()
 end
 
 local function detect_shell()
-    -- fish sets $fish_version in every fish session — most reliable check
-    if os.getenv("fish_version") then return "fish" end
-    -- fallback to $SHELL (may point to login shell, not current shell)
-    local shell = os.getenv("SHELL") or ""
-    if shell:match("zsh")  then return "zsh"  end
-    if shell:match("fish") then return "fish" end
-    if shell:match("bash") then return "bash" end
-    return "sh"
+    -- Ask explicitly — auto-detection via $SHELL is unreliable
+    -- (e.g. fish on Termux still shows $SHELL=/bin/bash)
+    io.write("Your shell: 1) fish  2) bash  3) zsh  4) sh/ash  [1-4]: ")
+    io.flush()
+    local choice = (io.stdin:read("*l") or ""):match("^%s*(.-)%s*$")
+    if     choice == "1" then return "fish"
+    elseif choice == "2" then return "bash"
+    elseif choice == "3" then return "zsh"
+    elseif choice == "4" then return "sh"
+    else
+        -- fallback: try $SHELL
+        local shell = os.getenv("SHELL") or ""
+        if shell:match("zsh")  then return "zsh"  end
+        if shell:match("fish") then return "fish" end
+        if shell:match("bash") then return "bash" end
+        return "sh"
+    end
 end
 
 -- ── platform-specific install ─────────────────────────────────────────────────
