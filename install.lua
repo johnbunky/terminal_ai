@@ -77,6 +77,9 @@ local function detect_platform()
 end
 
 local function detect_shell()
+    -- fish sets $fish_version in every fish session — most reliable check
+    if os.getenv("fish_version") then return "fish" end
+    -- fallback to $SHELL (may point to login shell, not current shell)
     local shell = os.getenv("SHELL") or ""
     if shell:match("zsh")  then return "zsh"  end
     if shell:match("fish") then return "fish" end
