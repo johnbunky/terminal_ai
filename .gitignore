@@ -1,0 +1,12 @@
+# user config and session files (live in ~, not in repo)
+.airc
+.ai_history
+.ai_usage
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+*.swp
