@@ -41,6 +41,8 @@ ai - < file.txt                   # redirect as prompt
 
 ai "message" --system "you are a pirate"
 ai "message" --provider claude    # one-off provider override
+ai "message" --model llama3-8b-8192  # one-off model override
+ai "message" --provider groq --model llama3-8b-8192
 ```
 
 ## Session management
@@ -55,12 +57,12 @@ ai -h           # show all commands
 
 ## Providers
 
-| Provider | Free | Key env var |
-|----------|------|-------------|
-| Groq     | ✅ yes (default) | `GROQ_API_KEY` |
-| Gemini   | ✅ yes | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
-| Claude   | ❌ paid | `ANTHROPIC_API_KEY` |
-| OpenAI   | ❌ paid | `OPENAI_API_KEY` |
+| Provider | Free | Key env var | Default model |
+|----------|------|-------------|---------------|
+| Groq     | ✅ yes (default) | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
+| Gemini   | ✅ yes | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| Claude   | ❌ paid | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
+| OpenAI   | ❌ paid | `OPENAI_API_KEY` | `gpt-4o-mini` |
 
 Get a free Groq key at [console.groq.com](https://console.groq.com) — no credit card.
 

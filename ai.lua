@@ -246,6 +246,7 @@ end
 local user_parts    = {}
 local system_prompt = nil
 local provider_flag = nil
+local model_flag    = nil
 local read_stdin    = false
 
 local function show_help()
@@ -258,7 +259,8 @@ local function show_help()
         "  ai - < file.txt                  use file as prompt\n" ..
         "\nOptions:\n" ..
         "  --system \"prompt\"               set a system prompt for this call\n" ..
-        "  --provider <name>               use a specific provider this call\n" ..
+        "  --provider <n>               use a specific provider this call\n" ..
+        "  --model <n>                  use a specific model this call\n" ..
         "\nSession:\n" ..
         "  --switch                        change active provider (interactive)\n" ..
         "  --history                       show conversation + token usage\n" ..
@@ -279,6 +281,7 @@ while i <= #arg do
     elseif arg[i] == "-h" or arg[i] == "--help" then show_help()
     elseif arg[i] == "--system"   and arg[i+1] then system_prompt = arg[i+1]; i = i + 2
     elseif arg[i] == "--provider" and arg[i+1] then provider_flag = arg[i+1]; i = i + 2
+    elseif arg[i] == "--model"    and arg[i+1] then model_flag    = arg[i+1]; i = i + 2
     elseif arg[i] == "-"                        then read_stdin = true;        i = i + 1
     else   table.insert(user_parts, arg[i]);                                   i = i + 1
     end
@@ -325,11 +328,12 @@ local usage   = load_usage()
 local provider_name = provider_flag or read_provider()
 local provider      = load_provider(provider_name)
 
-io.stderr:write(GRAY .. "[" .. provider_name .. " | " .. #history .. " msgs in history]" .. RESET .. "\n")
+io.stderr:write(GRAY .. "[" .. provider_name .. (model_flag and " | " .. model_flag or "") .. " | " .. #history .. " msgs in history]" .. RESET .. "\n")
 
 local response, err, tokens = provider.call(full_prompt, {
     system  = system_prompt,
     history = history,
+    model   = model_flag,
 })
 
 if not response then
