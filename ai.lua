@@ -129,7 +129,7 @@ end
 
 -- ── provider config ──────────────────────────────────────────────────────────
 
-local PROVIDERS = { "gemini", "claude", "openai", "groq" }
+local PROVIDERS = { "gemini", "claude", "openai", "groq", "openrouter"}
 
 local function read_provider()
     local raw = read_file(AIRC_PATH)
