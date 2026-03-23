@@ -22,8 +22,8 @@ Windows (CMD/clink), fish, bash, zsh, Termux, iSH.
 
 ```bash
 # clone
-git clone https://github.com/YOUR_USERNAME/ai.git
-cd ai
+git clone https://github.com/johnbunky/terminal_ai.git
+cd terminal_ai
 
 # run installer (detects your platform and shell)
 lua install.lua
