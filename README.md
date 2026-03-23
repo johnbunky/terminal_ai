@@ -51,18 +51,19 @@ ai "message" --provider groq --model llama3-8b-8192
 ai --history    # show conversation + token usage
 ai --compact    # summarize history into one message (saves tokens)
 ai --clear      # wipe history and reset token counter
-ai --switch     # change active provider (interactive menu)
+ai --provider   # change active provider (interactive menu)
 ai -h           # show all commands
 ```
 
 ## Providers
 
-| Provider | Free | Key env var | Default model |
-|----------|------|-------------|---------------|
-| Groq     | ✅ yes (default) | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
-| Gemini   | ✅ yes | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `gemini-2.5-flash` |
-| Claude   | ❌ paid | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
-| OpenAI   | ❌ paid | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| Provider   | Free | Key env var | Default model |
+|------------|------|-------------|---------------|
+| Groq       | ✅ yes (default) | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
+| Gemini     | ✅ yes | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| Openrouter | ✅ yes | `OPENROUTER_API_KEY` | `openrouter/free` |
+| Claude     | ❌ paid | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
+| OpenAI     | ❌ paid | `OPENAI_API_KEY` | `gpt-4o-mini` |
 
 Get a free Groq key at [console.groq.com](https://console.groq.com) — no credit card.
 
@@ -87,10 +88,15 @@ ai/
   ai.lua              entry point
   install.lua         one-time setup per device
   providers/
+    core/
+      http.lua
+      openai_like.lua
+      utils.lua
     groq.lua
     gemini.lua
     claude.lua
     openai.lua
+    openrouter.lua
 ```
 
 Config and history live in your home directory (`~`), not in the repo:
