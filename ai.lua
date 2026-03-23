@@ -6,7 +6,6 @@
 --   ai - < file.txt                        redirect as prompt
 --   ai "hello" --system "you are a pirate"
 --   ai "hello" --provider gemini           one-off override
---   ai --switch                            change active provider
 --   ai --clear                             clear conversation history
 --   ai --history                           show conversation history
 
@@ -256,16 +255,16 @@ local function show_help()
         "  ai \"message\"                    send a message\n" ..
         "  ai \"message\" -                  send a message + read stdin\n" ..
         "  cat file.txt | ai - \"question\"  pipe content with a question\n" ..
-        "  ai - < file.txt                  use file as prompt\n" ..
+        "  ai - < file.txt                   use file as prompt\n" ..
         "\nOptions:\n" ..
         "  --system \"prompt\"               set a system prompt for this call\n" ..
-        "  --provider <n>               use a specific provider this call\n" ..
-        "  --model <n>                  use a specific model this call\n" ..
+        "  --provider <n> or -p <n>          use a specific provider this call\n" ..
+        "  --provider or -p                  change active provider (interactive)\n" ..
+        "  --model <n> or -m <n>             use a specific model this call\n" ..
         "\nSession:\n" ..
-        "  --switch                        change active provider (interactive)\n" ..
-        "  --history                       show conversation + token usage\n" ..
-        "  --compact                       summarize history into one message\n" ..
-        "  --clear                         clear history and reset token counter\n" ..
+        "  --history                         show conversation + token usage\n" ..
+        "  --compact                         summarize history into one message\n" ..
+        "  --clear                           clear history and reset token counter\n" ..
         "\nProviders:  " .. table.concat(PROVIDERS, "  ") .. "\n" ..
         "Active:     " .. provider .. "\n"
     )
@@ -274,14 +273,17 @@ end
 
 local i = 1
 while i <= #arg do
-    if     arg[i] == "--switch"                 then switch_provider()
-    elseif arg[i] == "--clear"                  then clear_history()
+    if arg[i] == "--clear"                  then clear_history()
     elseif arg[i] == "--compact"                then compact_history()
     elseif arg[i] == "--history"                then show_history()
     elseif arg[i] == "-h" or arg[i] == "--help" then show_help()
     elseif arg[i] == "--system"   and arg[i+1] then system_prompt = arg[i+1]; i = i + 2
-    elseif arg[i] == "--provider" and arg[i+1] then provider_flag = arg[i+1]; i = i + 2
-    elseif arg[i] == "--model"    and arg[i+1] then model_flag    = arg[i+1]; i = i + 2
+    elseif arg[i] == "--provider" or arg[i] == "-p"
+        and not arg[i+1] then switch_provider(); i = i + 1
+    elseif arg[i] == "--provider" or arg[i] == "-p"
+        and arg[i+1] then provider_flag = arg[i+1]; i = i + 2
+    elseif arg[i] == "--model" or arg[i] == "-m"   
+        and arg[i+1] then model_flag    = arg[i+1]; i = i + 2
     elseif arg[i] == "-"                        then read_stdin = true;        i = i + 1
     else   table.insert(user_parts, arg[i]);                                   i = i + 1
     end
