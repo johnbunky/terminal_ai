@@ -8,6 +8,8 @@
 --   ai "hello" --provider gemini           one-off override
 --   ai --clear                             clear conversation history
 --   ai --history                           show conversation history
+--   ai --pipe                              create/edit/delete a pipe macro
+--   ai +name arg1 arg2                     run a pipe macro
 
 -- ── platform ──────────────────────────────────────────────────────────────────
 
@@ -17,19 +19,18 @@ local HOME      = os.getenv(IS_WIN and "USERPROFILE" or "HOME") or "."
 local AIRC_PATH  = HOME .. SEP .. ".airc"
 local HIST_PATH  = HOME .. SEP .. ".ai_history"
 local USAGE_PATH = HOME .. SEP .. ".ai_usage"
+local PIPES_PATH = HOME .. SEP .. ".ai_pipes"
 
 -- ── ANSI support detection ───────────────────────────────────────────────────
--- Override: set AI_COLOR=1 (force on) or AI_COLOR=0 (force off) in your env.
--- Auto-detect checks common terminal signals across Windows/Unix.
 
 local function supports_ansi()
     local override = os.getenv("AI_COLOR")
     if override == "1" then return true  end
     if override == "0" then return false end
-    if os.getenv("WT_SESSION")    then return true end  -- Windows Terminal
-    if os.getenv("CLINK_VERSION") then return true end  -- clink
-    if os.getenv("ANSICON")       then return true end  -- ANSICON
-    if os.getenv("ConEmuANSI") == "ON" then return true end  -- ConEmu
+    if os.getenv("WT_SESSION")    then return true end
+    if os.getenv("CLINK_VERSION") then return true end
+    if os.getenv("ANSICON")       then return true end
+    if os.getenv("ConEmuANSI") == "ON" then return true end
     local term = os.getenv("TERM")
     if term and term ~= "" and term ~= "dumb" then return true end
     return false
@@ -39,6 +40,8 @@ local GRAY  = supports_ansi() and "\27[90m" or ""
 local RESET = supports_ansi() and "\27[0m"  or ""
 
 local SCRIPT_DIR = (arg[0]:match("^(.*)[/\\][^/\\]+$")) or "."
+-- $AI in pipe templates expands to this — works without clink aliases
+local AI_CMD = 'lua "' .. SCRIPT_DIR .. SEP .. 'ai.lua"'
 
 -- ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,14 +80,6 @@ local function reset_usage()
 end
 
 -- ── history ───────────────────────────────────────────────────────────────────
--- Simple delimiter format — no JSON, no escaping issues.
--- Each message block:
---   <<<MSG>>>
---   <<<ROLE:user>>>
---   content here
---   <<<MSG>>>
---   <<<ROLE:assistant>>>
---   content here
 
 local DELIM = "<<<MSG>>>"
 
@@ -126,9 +121,139 @@ local function save_history(msgs)
     write_file(HIST_PATH, table.concat(parts, "\n"))
 end
 
--- ── provider config ──────────────────────────────────────────────────────────
+-- ── pipe macros ───────────────────────────────────────────────────────────────
+-- ~/.ai_pipes format:  name<TAB>template  (one per line)
+--
+-- Placeholders:
+--   $1 $2 $3 ...  positional args passed after +name
+--   $*            all args joined by space
+--
+-- Examples in ~/.ai_pipes:
+--   review    cat $1 | $AI - "review this, be concise"
+--   explain   sed -n "$2p" $1 | $AI - "explain this code"
+--   patch     cat $1 | $AI - "$2" | patch -u $1
+--   commit    git diff | $AI - "write a commit message"
+--
+-- Create / edit:  ai --pipe  (same name overwrites)
+-- Delete:         ai --pipe  (enter name, leave template blank)
 
-local PROVIDERS = { "gemini", "claude", "openai", "groq", "openrouter"}
+local function load_pipes()
+    local raw = read_file(PIPES_PATH)
+    if not raw or raw:match("^%s*$") then return {}, {} end
+    local pipes = {}
+    local order = {}
+    for line in (raw .. "\n"):gmatch("([^\n]*)\n") do
+        line = trim(line)
+        if line ~= "" and not line:match("^%-%-") then
+            local name, template = line:match("^(%S+)\t(.+)$")
+            if name and template then
+                if not pipes[name] then table.insert(order, name) end
+                pipes[name] = template
+            end
+        end
+    end
+    return pipes, order
+end
+
+local function save_pipes(pipes, order)
+    local lines = {}
+    for _, name in ipairs(order) do
+        if pipes[name] then
+            table.insert(lines, name .. "\t" .. pipes[name])
+        end
+    end
+    write_file(PIPES_PATH, table.concat(lines, "\n") .. (#lines > 0 and "\n" or ""))
+end
+
+local function expand_template(template, args)
+    local result = template
+    -- $AI expands to the full lua invocation (works without shell aliases)
+    result = result:gsub("%$AI", AI_CMD)
+    for idx, val in ipairs(args) do
+        result = result:gsub("%$" .. idx, val)
+    end
+    result = result:gsub("%$%*", table.concat(args, " "))
+    return result
+end
+
+local function run_pipe(name, args)
+    local pipes = load_pipes()
+    local template = pipes[name]
+    if not template then
+        io.stderr:write("Unknown pipe: +" .. name .. "\n")
+        io.stderr:write("Run 'ai -h' to see available pipes.\n")
+        os.exit(1)
+    end
+    local cmd = expand_template(template, args)
+    io.stderr:write(GRAY .. "[+" .. name .. "] " .. cmd .. RESET .. "\n")
+    local ok = os.execute(cmd)
+    os.exit(ok and 0 or 1)
+end
+
+local function pipe_dialog()
+    io.stdout:write("-- Pipe macro --------------------------------------------\n")
+    io.stdout:write("Placeholders: $1 $2 $3 positional  $* all args  $AI this tool\n")
+    io.stdout:write("Leave template blank to DELETE an existing pipe.\n\n")
+
+    io.write("Name: ")
+    io.flush()
+    local name = trim(io.stdin:read("*l") or "")
+    if name == "" then io.stderr:write("Aborted.\n"); os.exit(1) end
+    if name:match("%s") then io.stderr:write("Name cannot contain spaces.\n"); os.exit(1) end
+
+    local pipes, order = load_pipes()
+
+    if pipes[name] then
+        io.stdout:write("Current: " .. pipes[name] .. "\n")
+    end
+
+    io.write("Template (blank to delete): ")
+    io.flush()
+    local template = trim(io.stdin:read("*l") or "")
+
+    -- delete
+    if template == "" then
+        if pipes[name] then
+            pipes[name] = nil
+            local new_order = {}
+            for _, n in ipairs(order) do
+                if n ~= name then table.insert(new_order, n) end
+            end
+            save_pipes(pipes, new_order)
+            io.stdout:write("Deleted: +" .. name .. "\n")
+        else
+            io.stdout:write("Not found: +" .. name .. "\n")
+        end
+        os.exit(0)
+    end
+
+    -- optional test preview
+    io.write("Test args (blank to skip): ")
+    io.flush()
+    local test_input = trim(io.stdin:read("*l") or "")
+    if test_input ~= "" then
+        local test_args = {}
+        for a in test_input:gmatch("%S+") do table.insert(test_args, a) end
+        local expanded = expand_template(template, test_args)
+        io.stdout:write("Preview: " .. expanded .. "\n")
+        io.write("Save? [y/n]: ")
+        io.flush()
+        if trim(io.stdin:read("*l") or "") ~= "y" then
+            io.stderr:write("Aborted.\n"); os.exit(1)
+        end
+    end
+
+    if not pipes[name] then table.insert(order, name) end
+    pipes[name] = template
+    save_pipes(pipes, order)
+    io.stdout:write("Saved: +" .. name .. "\n")
+    io.stdout:write("Usage: ai +" .. name .. " <args>\n")
+    os.exit(0)
+end
+
+-- ── provider config ───────────────────────────────────────────────────────────
+
+local PROVIDERS = { "gemini", "claude", "openai", "groq", "openrouter" }
 
 local function read_provider()
     local raw = read_file(AIRC_PATH)
@@ -174,7 +299,6 @@ local function compact_history()
         os.exit(0)
     end
 
-    -- build a summarization prompt from current history
     local lines = { "Summarize this conversation concisely for future context." }
     table.insert(lines, "Keep: all decisions, key facts, names, open questions.")
     table.insert(lines, "Discard: pleasantries, repeated explanations.")
@@ -184,7 +308,6 @@ local function compact_history()
     end
     local summary_prompt = table.concat(lines, "\n")
 
-    -- load provider and call it
     local provider_name = read_provider()
     local provider      = load_provider(provider_name)
 
@@ -196,7 +319,6 @@ local function compact_history()
         os.exit(1)
     end
 
-    -- replace entire history with one summary message
     local compacted = { { role = "user", content = "[CONVERSATION SUMMARY]\n" .. summary } }
     save_history(compacted)
     reset_usage()
@@ -249,43 +371,61 @@ local model_flag    = nil
 local read_stdin    = false
 
 local function show_help()
-    local provider = read_provider()
+    local provider    = read_provider()
+    local pipes, order = load_pipes()
+
+    local pipes_lines = ""
+    if #order > 0 then
+        pipes_lines = "\nDefined pipes:\n"
+        for _, name in ipairs(order) do
+            pipes_lines = pipes_lines .. string.format("  +%-16s %s\n", name, pipes[name])
+        end
+    end
+
     io.stdout:write(
-        "Usage:\n" ..
-        "  ai \"message\"                    send a message\n" ..
-        "  ai \"message\" -                  send a message + read stdin\n" ..
-        "  cat file.txt | ai - \"question\"  pipe content with a question\n" ..
-        "  ai - < file.txt                   use file as prompt\n" ..
-        "\nOptions:\n" ..
-        "  --system \"prompt\"               set a system prompt for this call\n" ..
-        "  --provider <n> or -p <n>          use a specific provider this call\n" ..
-        "  --provider or -p                  change active provider (interactive)\n" ..
-        "  --model <n> or -m <n>             use a specific model this call\n" ..
-        "\nSession:\n" ..
-        "  --history                         show conversation + token usage\n" ..
-        "  --compact                         summarize history into one message\n" ..
-        "  --clear                           clear history and reset token counter\n" ..
-        "\nProviders:  " .. table.concat(PROVIDERS, "  ") .. "\n" ..
-        "Active:     " .. provider .. "\n"
+        "Usage:\n"
+        .. "  ai \"message\"                    send a message\n"
+        .. "  ai \"message\" -                  send a message + read stdin\n"
+        .. "  cat file.txt | ai - \"question\"  pipe content with a question\n"
+        .. "  ai - < file.txt                  use file as prompt\n"
+        .. "  ai +name arg1 arg2               run a pipe macro\n"
+        .. "\nOptions:\n"
+        .. "  --system \"prompt\"               set a system prompt for this call\n"
+        .. "  --provider <n> or -p <n>         use a specific provider this call\n"
+        .. "  --provider or -p                 change active provider (interactive)\n"
+        .. "  --model <n> or -m <n>            use a specific model this call\n"
+        .. "\nSession:\n"
+        .. "  --history                        show conversation + token usage\n"
+        .. "  --compact                        summarize history into one message\n"
+        .. "  --clear                          clear history and reset token counter\n"
+        .. "\nPipes:\n"
+        .. "  --pipe                           create / edit / delete a pipe macro\n"
+        .. pipes_lines
+        .. "\nProviders:  " .. table.concat(PROVIDERS, "  ") .. "\n"
+        .. "Active:     " .. provider .. "\n"
     )
     os.exit(0)
 end
 
 local i = 1
 while i <= #arg do
-    if arg[i] == "--clear"                  then clear_history()
-    elseif arg[i] == "--compact"                then compact_history()
-    elseif arg[i] == "--history"                then show_history()
-    elseif arg[i] == "-h" or arg[i] == "--help" then show_help()
-    elseif arg[i] == "--system"   and arg[i+1] then system_prompt = arg[i+1]; i = i + 2
-    elseif arg[i] == "--provider" or arg[i] == "-p"
-        and not arg[i+1] then switch_provider(); i = i + 1
-    elseif arg[i] == "--provider" or arg[i] == "-p"
-        and arg[i+1] then provider_flag = arg[i+1]; i = i + 2
-    elseif arg[i] == "--model" or arg[i] == "-m"   
-        and arg[i+1] then model_flag    = arg[i+1]; i = i + 2
-    elseif arg[i] == "-"                        then read_stdin = true;        i = i + 1
-    else   table.insert(user_parts, arg[i]);                                   i = i + 1
+    if     arg[i] == "--clear"                                      then clear_history()
+    elseif arg[i] == "--compact"                                    then compact_history()
+    elseif arg[i] == "--history"                                    then show_history()
+    elseif arg[i] == "--pipe"                                       then pipe_dialog()
+    elseif arg[i] == "-h" or arg[i] == "--help"                     then show_help()
+    elseif arg[i] == "--system"  and arg[i+1]                       then system_prompt = arg[i+1]; i = i + 2
+    elseif (arg[i] == "--provider" or arg[i] == "-p") and arg[i+1]  then provider_flag = arg[i+1]; i = i + 2
+    elseif  arg[i] == "--provider" or arg[i] == "-p"                then switch_provider()
+    elseif (arg[i] == "--model"    or arg[i] == "-m") and arg[i+1]  then model_flag    = arg[i+1]; i = i + 2
+    elseif arg[i] == "-"                                            then read_stdin = true; i = i + 1
+    elseif arg[i]:sub(1,1) == "+"                                   then
+        local pipe_name = arg[i]:sub(2)
+        local pipe_args = {}
+        for j = i+1, #arg do table.insert(pipe_args, arg[j]) end
+        run_pipe(pipe_name, pipe_args)
+    else
+        table.insert(user_parts, arg[i]); i = i + 1
     end
 end
 
@@ -320,7 +460,7 @@ if user_message then
 end
 local full_prompt = table.concat(parts, "\n\n")
 
--- ── load history + usage ─────────────────────────────────────────────────────
+-- ── load history + usage ──────────────────────────────────────────────────────
 
 local history = load_history()
 local usage   = load_usage()
@@ -343,8 +483,7 @@ if not response then
     os.exit(1)
 end
 
--- ── show token usage ──────────────────────────────────────────────────────────
--- Accumulated silently; visible in --history report only.
+-- ── token tracking ────────────────────────────────────────────────────────────
 
 if tokens then
     usage.session_in  = usage.session_in  + (tokens.input  or 0)
