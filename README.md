@@ -1,126 +1,250 @@
-# ai — universal AI CLI in Lua
+# **ai — universal AI CLI for the terminal**
 
-A lightweight command-line AI assistant that works everywhere Lua and curl are available:
-Windows (CMD/clink), fish, bash, zsh, Termux, iSH.
+A small command-line assistant that works anywhere Lua and curl are available.
+It does one thing: connects your shell to any AI provider.
+Nothing more. Nothing hidden.
 
-## Features
+It behaves like a regular UNIX tool.
+You can pipe data in.
+You can pipe data out.
+You can script it.
+You can read its files.
+You stay in control.
 
-- Multiple providers: Groq, Gemini, Claude, OpenAI, OpenRouter
-- Conversation history across calls
-- Pipe anything in: `cat file.txt | ai - "summarize"`
-- Switch providers mid-session, shared history
-- Token usage tracking
-- Pipe macros: save and reuse complex pipe chains as short commands
-- One-command install per device
+---
 
-## Requirements
+## **Why this project exists**
 
-- Lua 5.4+
-- curl
-- jq (for Claude provider only)
+Most AI tools want to move your work into their world.
+The goal here is the opposite.
 
-## Install
+This project brings AI into *your* environment —
+your shell, your editor, your habits, your own way of thinking.
 
-```bash
+The design follows a few simple ideas:
+
+* A terminal is already an excellent workflow engine.
+* AI should be a small tool you can combine with others.
+* Nothing should be locked away behind an interface.
+* Plain text is always better than proprietary formats.
+* The user decides the provider, the model, and the cost.
+
+A quiet tool that fits into the space you already use.
+
+---
+
+## **Features**
+
+* Multiple providers: Groq, Gemini, Claude, OpenAI, OpenRouter
+* Shared conversation history stored as plain text
+* History can be shown, compacted, or cleared
+* Pipes work naturally: `cat file | ai - "summarize"`
+* Pipe macros let you define reusable workflows
+* Provider and model switches on any command
+* Token usage tracking
+* Runs anywhere Lua runs
+* One-command install
+
+---
+
+## **Requirements**
+
+* Lua 5.4+
+* curl
+* jq (only for Claude)
+
+---
+
+## **Installation**
+
+```sh
 git clone https://github.com/johnbunky/terminal_ai.git
 cd terminal_ai
 lua install.lua
 ```
 
-Then reload your shell config (the installer tells you exactly which command).
+Reload your shell as instructed by the installer.
 
-## Usage
+---
 
-```bash
+## **Usage**
+
+Send a message:
+
+```sh
 ai "your message"
-ai "question" -                   # include stdin too
-cat file.txt | ai - "summarize"   # pipe content
-ai - < file.txt                   # redirect as prompt
+```
 
+Combine it with stdin:
+
+```sh
+cat file.txt | ai - "summarize"
+ai - < file.txt
+```
+
+Set a system prompt:
+
+```sh
 ai "message" --system "you are a pirate"
-ai "message" --provider claude            # one-off provider override
-ai "message" --model llama-3.3-70b-versatile  # one-off model override
-ai "message" -p groq -m llama-3.3-70b-versatile
 ```
 
-## Session management
+Temporary provider or model:
 
-```bash
-ai --history    # show conversation + token usage
-ai --compact    # summarize history into one message (saves tokens)
-ai --clear      # wipe history and reset token counter
-ai --provider   # change active provider (interactive menu)
-ai -h           # show all commands
+```sh
+ai -p claude "explain"
+ai -m llama-3.3-70b-versatile "draft code"
 ```
 
-## Pipe macros
+---
 
-Save complex pipe chains as short reusable commands.
-Use `$1 $2 $3` for positional args, `$*` for all args, `$AI` to call back into ai.
+## **Session management**
 
-```bash
-ai --pipe       # create / edit / delete a pipe (interactive)
-ai -h           # lists all defined pipes
-ai +name arg1   # run a pipe
+```sh
+ai --history    # show past messages
+ai --compact    # compress history into one entry
+ai --clear      # erase history and counters
+ai --provider   # interactive provider switch
+ai -h           # help
 ```
 
-### Example pipes
+---
 
-```bash
-# review a file
-# template: cat $1 | $AI - "review this code, be concise"
+## **Pipe macros**
+
+A pipe macro is a named template for workflows that involve `ai`.
+Arguments use `$1`, `$2`, `$*`.
+Use `$AI` inside templates. It expands to the full path of the script.
+
+Create or edit pipes:
+
+```sh
+ai --pipe
+```
+
+Run one:
+
+```sh
+ai +name args...
+```
+
+---
+
+## **Examples**
+
+### Review a file
+
+Template:
+
+```
+cat $1 | $AI - "review this code"
+```
+
+Usage:
+
+```sh
 ai +review main.lua
-
-# explain a line range
-# template: sed -n "$2p" $1 | $AI - "explain this code"
-ai +explain main.lua 11,16
-
-# git commit message from current diff
-# template: git diff | $AI - "write a commit message"
-ai +commit
-
-# apply AI suggestions as a patch
-# template: cat $1 | $AI - "$2" | patch -u $1
-ai +patch main.lua "fix error handling"
 ```
 
-> **Note:** Use `$AI` instead of `ai` in templates — `ai` is a shell alias
-> and won't work inside `os.execute()`. `$AI` expands to the full
-> `lua "/path/to/ai.lua"` invocation automatically.
+---
 
-## Providers
+### Explain a range of lines
 
-| Provider   | Free | Key env var | Default model |
-|------------|------|-------------|---------------|
-| Groq       | ✅ yes (default) | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
-| Gemini     | ✅ yes | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `gemini-2.5-flash` |
-| OpenRouter | ✅ yes (free tier) | `OPENROUTER_API_KEY` | `openrouter/free` |
-| Claude     | ❌ paid | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
-| OpenAI     | ❌ paid | `OPENAI_API_KEY` | `gpt-4o-mini` |
+Template:
 
-Free keys: [console.groq.com](https://console.groq.com) · [openrouter.ai](https://openrouter.ai) · [aistudio.google.com](https://aistudio.google.com)
+```
+sed -n "$2p" $1 | $AI - "explain this code"
+```
 
-## Adding a provider
+Usage:
 
-1. Copy `providers/groq.lua` to `providers/yourprovider.lua`
-2. Change the API endpoint, key env var, and default model
-3. Add `"yourprovider"` to the `PROVIDERS` list in `ai.lua`
+```sh
+ai +explain main.lua 11,16
+```
 
-The provider must expose one function:
+---
+
+### Create a commit message from the current diff
+
+Template:
+
+```
+git diff | $AI - "write a commit message"
+```
+
+Usage:
+
+```sh
+ai +commit
+```
+
+---
+
+### Apply an AI-generated patch
+
+Template:
+
+```
+cat $1 | $AI - "$2" | patch -u $1
+```
+
+Usage:
+
+```sh
+ai +patch main.lua "improve error handling"
+```
+
+---
+
+## **Providers**
+
+| Provider   | Free | Env var                              | Default model               |
+| ---------- | ---- | ------------------------------------ | --------------------------- |
+| Groq       | yes  | `GROQ_API_KEY`                       | `llama-3.3-70b-versatile`   |
+| Gemini     | yes  | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `gemini-2.5-flash`          |
+| OpenRouter | yes  | `OPENROUTER_API_KEY`                 | `openrouter/free`           |
+| Claude     | no   | `ANTHROPIC_API_KEY`                  | `claude-haiku-4-5-20251001` |
+| OpenAI     | no   | `OPENAI_API_KEY`                     | `gpt-4o-mini`               |
+
+---
+
+## **Adding a provider**
+
+Copy an existing provider, for example:
+
+```
+providers/groq.lua → providers/yourprovider.lua
+```
+
+Modify:
+
+* API endpoint
+* API key environment variable
+* default model
+
+Then add the provider name to the list in `ai.lua`.
+
+Each provider exports:
 
 ```lua
 M.call(prompt, opts) -> text, err, tokens
--- opts.system   string
--- opts.history  table of {role, content}
--- opts.model    string (optional override)
 ```
 
-## File layout
+Where `opts` may contain:
+
+```lua
+opts.system
+opts.history
+opts.model
+```
+
+---
+
+## **File layout**
 
 ```
 terminal_ai/
-  ai.lua              entry point
-  install.lua         one-time setup per device
+  ai.lua
+  install.lua
   README.md
   providers/
     core/
@@ -134,9 +258,11 @@ terminal_ai/
     openrouter.lua
 ```
 
-Config and history live in your home directory (`~`), not in the repo:
+User data is stored in your home directory:
 
-- `~/.airc` — active provider name
-- `~/.ai_history` — conversation history
-- `~/.ai_usage` — session token counters
-- `~/.ai_pipes` — saved pipe macros
+```
+~/.airc        # current provider
+~/.ai_history  # conversation history
+~/.ai_usage    # token counters
+~/.ai_pipes    # pipe definitions
+```
