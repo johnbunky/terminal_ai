@@ -292,7 +292,8 @@ local function clear_history()
     os.exit(0)
 end
 
-local function compact_history()
+local function compact_history(opts)
+    opts = opts or {}
     local msgs = load_history()
     if #msgs == 0 then
         io.stderr:write("No history to compact.\n")
@@ -308,12 +309,14 @@ local function compact_history()
     end
     local summary_prompt = table.concat(lines, "\n")
 
-    local provider_name = read_provider()
+    local provider_name = opts.provider or read_provider()
     local provider      = load_provider(provider_name)
+io.stderr:write(tostring(opts) .. "\n")
 
-    io.stderr:write(GRAY .. "Compacting " .. #msgs .. " messages via " .. provider_name .. "..." .. RESET .. "\n")
+    io.stderr:write(GRAY .. "Compacting " .. #msgs .. " messages via " .. provider_name ..
+        (opts.model and " | " .. opts.model or "") .. "..." .. RESET .. "\n")
 
-    local summary, err = provider.call(summary_prompt, {})
+    local summary, err = provider.call(summary_prompt, { model = opts.model })
     if not summary then
         io.stderr:write("Error during compaction: " .. (err or "unknown") .. "\n")
         os.exit(1)
@@ -321,9 +324,8 @@ local function compact_history()
 
     local compacted = { { role = "user", content = "[CONVERSATION SUMMARY]\n" .. summary } }
     save_history(compacted)
-    reset_usage()
 
-    io.stderr:write(GRAY .. "Compacted to 1 message. Tokens reset." .. RESET .. "\n")
+    io.stderr:write(GRAY .. "Compacted to 1 message." .. RESET .. "\n")
     os.exit(0)
 end
 
@@ -410,7 +412,7 @@ end
 local i = 1
 while i <= #arg do
     if     arg[i] == "--clear"                                      then clear_history()
-    elseif arg[i] == "--compact"                                    then compact_history()
+    elseif arg[i] == "--compact" then compact_history({ provider = provider_flag, model = model_flag })
     elseif arg[i] == "--history"                                    then show_history()
     elseif arg[i] == "--pipe"                                       then pipe_dialog()
     elseif arg[i] == "-h" or arg[i] == "--help"                     then show_help()
