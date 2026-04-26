@@ -16,7 +16,25 @@ local openai_like = require("core.openai_like")
 
 local M = {}
 
-local DEFAULT_MODEL ="openrouter/free"  -- free testing model --"openai/gpt-oss-120b" --"anthropic/claude-sonnet-4.6"  --"deepseek/deepseek-v3.2"  
+M.MODELS = {
+    "openrouter/auto",                          -- default (auto-selects best)
+    "openrouter/free",                          -- free tier
+    "deepseek/deepseek-v3.2",
+    "deepseek/deepseek-r2",
+    "meta-llama/llama-3.3-70b-instruct",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "google/gemini-2.5-pro",
+    "google/gemini-2.5-flash",
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-haiku-4-5",
+    "openai/gpt-oss-120b",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4o",
+    "microsoft/phi-4-reasoning:free",
+    "qwen/qwen3-235b-a22b:free",
+}
+
+local DEFAULT_MODEL ="openrouter/free"  -- free testing model
 local API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 -- ── build messages array ───────────────────────────────
