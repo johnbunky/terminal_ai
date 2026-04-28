@@ -129,10 +129,17 @@ end
 --   $*            all args joined by space
 --
 -- Examples in ~/.ai_pipes:
---   review    cat $1 | ai - "review this, be concise"
---   explain   sed -n "$2p" $1 | ai - "explain this code"
---   patch     cat $1 | ai - "$2" | patch -u $1
---   commit    git diff | ai - "write a commit message"
+
+-- commit	git add . && git diff --cached | $AI - "summarise changes in one short commit message" > commit_msg.txt && git commit -F commit_msg.txt && del commit_msg.txt
+-- push	$AI +commit && git push
+-- error	$* 2>&1 | $AI - The input is an error message from stderr. Please analyze it and explain exactly how to fix the issue. Do not guess or invent context-if you need more information to provide a solution, ask for it explicitly.
+-- sh	$AI $* --system Output only ONE shell command, with all steps separated by ;. Do NOT output multiple lines. Do NOT include explanations. | sh
+-- checkpoint	git add . && git commit -m "checkpoint" && $AI --compact
+-- undo	git reset --hard HEAD && git clean -fd && $AI --compact && echo "Rolled back to last checkpoint."
+-- plan	$AI - Analyze input and create a detailed step-by-step plan for: $*. Do NOT write any code yet. Number each step clearly.If something is ambiguous, choose sensible defaults and continue. Only ask questions if the task cannot proceed.
+-- write	cat $1 | $AI - "You are rewriting a source file. Use the plan from the conversation. Apply it carefully. Return ONLY the full rewritten file content, no markdown, no explanation." > $1.tmp && cp $1 $1.bak && mv $1.tmp $1 && echo "Done. Backup saved as $1.bak"
+-- patch	cat $1 | $AI - "Modify this file according to the user request. Return ONLY a valid unified diff (patch -u format). No explanations." > $1.diff && patch --forward -u $1 $1.diff && echo "Patched. Diff saved as $1.diff" || echo "Patch failed. See $1.diff"
+
 --
 -- Create / edit:  ai --pipe  (same name overwrites)
 -- Delete:         ai --pipe  (enter name, leave template blank)

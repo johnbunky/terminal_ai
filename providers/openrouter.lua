@@ -25,8 +25,8 @@ M.MODELS = {
     "meta-llama/llama-3.1-8b-instruct:free",
     "google/gemini-2.5-pro",
     "google/gemini-2.5-flash",
-    "anthropic/claude-sonnet-4",
-    "anthropic/claude-haiku-4-5",
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-haiku-4.5",
     "openai/gpt-oss-120b",
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
@@ -59,9 +59,10 @@ end
 
 -- ── build payload ──────────────────────────────────────
 local function build_payload(model, messages, opts)
+    local max_tokens = (opts and opts.max_tokens) or 8192
     return string.format(
-        '{"model":"%s","messages":%s}',
-        model, messages
+        '{"model":"%s","max_tokens":%d,"messages":%s}',
+        model, max_tokens, messages
     )
 end
 

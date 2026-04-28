@@ -105,9 +105,11 @@ function M.call(prompt, opts)
         sys_block = string.format(',"system":"%s"', json_str(opts.system))
     end
 
+    local max_tokens = opts.max_tokens or 2048
+
     local payload = string.format(
-        '{"model":"%s","max_tokens":2048%s,"messages":%s}',
-        model, sys_block, messages
+        '{"model":"%s","max_tokens":%d%s,"messages":%s}',
+        model, max_tokens, sys_block, messages
     )
 
     local tmp_pay = tmpfile("_pay.json")
