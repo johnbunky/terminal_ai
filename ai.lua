@@ -130,7 +130,7 @@ end
 --
 -- Examples in ~/.ai_pipes:
 
--- commit	git add . && git diff --cached | $AI - "summarise changes in one short commit message" > commit_msg.txt && git commit -F commit_msg.txt && del commit_msg.txt
+-- commit	git add . && git diff --cached | $AI - "summarise changes in one short commit message" > commit_msg.txt && git commit -F commit_msg.txt && rm commit_msg.txt
 -- push	$AI +commit && git push
 -- error	$* 2>&1 | $AI - The input is an error message from stderr. Please analyze it and explain exactly how to fix the issue. Do not guess or invent context-if you need more information to provide a solution, ask for it explicitly.
 -- sh	$AI $* --system Output only ONE shell command, with all steps separated by ;. Do NOT output multiple lines. Do NOT include explanations. | sh
