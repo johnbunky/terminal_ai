@@ -1,5 +1,7 @@
--- install.lua — sets up the `ai` alias for the current platform
--- Run once on each device: lua install.lua
+-- install.lua — sets up a tool alias for the current platform
+-- Run once on each device:
+--   lua install.lua        → installs `ai` alias
+--   lua install.lua jk     → installs `jk` alias
 --
 -- Supported:
 --   Windows  + clink   → appends to %LOCALAPPDATA%\clink\aliases.lua
@@ -39,7 +41,7 @@ local function ask(question)
     return (io.stdin:read("*l") or ""):match("^%s*(.-)%s*$"):lower()
 end
 
--- ── resolve this script's directory (= where ai.lua lives) ───────────────────
+-- ── resolve this script's directory + alias name ─────────────────────────────
 
 local SCRIPT_DIR = (arg[0]:match("^(.*)[/\\][^/\\]+$")) or "."
 -- Resolve to absolute path if relative
@@ -53,7 +55,8 @@ if not SCRIPT_DIR:match("^[A-Za-z]:\\") and not SCRIPT_DIR:match("^/") then
     SCRIPT_DIR = (pwd or ".") .. SEP .. SCRIPT_DIR
 end
 
-local AI_LUA = SCRIPT_DIR .. SEP .. "ai.lua"
+local ALIAS   = arg[1] or "ai"
+local TOOL_LUA = SCRIPT_DIR .. SEP .. ALIAS .. ".lua"
 
 -- ── platform detection ────────────────────────────────────────────────────────
 
@@ -103,7 +106,7 @@ local shell    = detect_shell()
 
 print("Platform : " .. platform)
 print("Shell    : " .. shell)
-print("ai.lua   : " .. AI_LUA)
+print(ALIAS..".lua   : " .. TOOL_LUA)
 print("")
 
 -- ── windows + clink ───────────────────────────────────────────────────────────
@@ -114,15 +117,15 @@ if platform == "windows" then
 
     -- Check if already installed
     local existing = read_file(aliases_file)
-    if existing:match("ai%.lua") then
+    if existing:match(ALIAS:gsub("([%.%+%-%*%?%[%]%^%$%%%(%)%{%}])", "%%%1").."%%.lua") then
         print("Already installed in: " .. aliases_file)
-        print("Line found: ai alias pointing to ai.lua")
+        print("Line found: "..ALIAS.." alias pointing to "..ALIAS..".lua")
         os.exit(0)
     end
 
     local alias_line = string.format(
-        '\nos.setalias("ai", \'lua "%s" $*\')\n',
-        AI_LUA
+        '\nos.setalias("%s", \'lua "%s" $*\')\n',
+        ALIAS, TOOL_LUA
     )
 
     print("Will append to: " .. aliases_file)
@@ -142,14 +145,14 @@ if shell == "fish" then
     local config_file = config_dir .. "/config.fish"
 
     local existing = read_file(config_file)
-    if existing:match("ai%.lua") then
+    if existing:match(ALIAS:gsub("([%.%+%-%*%?%[%]%^%$%%%(%)%{%}])", "%%%1").."%%.lua") then
         print("Already installed in: " .. config_file)
         os.exit(0)
     end
 
     local alias_line = string.format(
-        '\nfunction ai\n    lua "%s" $argv\nend\n',
-        AI_LUA
+        "\nfunction "..ALIAS.."\n    lua \"%s\" $argv\nend\n",
+        TOOL_LUA
     )
 
     print("Will append to: " .. config_file)
@@ -187,14 +190,14 @@ for _, c in ipairs(candidates) do
 end
 
 local existing = read_file(rc_file)
-if existing:match("ai%.lua") then
+if existing:match(ALIAS:gsub("([%.%+%-%*%?%[%]%^%$%%%(%)%{%}])", "%%%1").."%%.lua") then
     print("Already installed in: " .. rc_file)
     os.exit(0)
 end
 
 local alias_line = string.format(
-    '\nalias ai=\'lua "%s"\'\n',
-    AI_LUA
+    "\nalias "..ALIAS.."='lua \"%s\"'\n",
+    TOOL_LUA
 )
 
 print("Will append to: " .. rc_file)
