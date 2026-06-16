@@ -56,7 +56,20 @@ if not SCRIPT_DIR:match("^[A-Za-z]:\\") and not SCRIPT_DIR:match("^/") then
 end
 
 local ALIAS   = arg[1] or "ai"
-local TOOL_LUA = SCRIPT_DIR .. SEP .. ALIAS .. ".lua"
+-- ALIAS.lua usually lives next to install.lua (the ai/ submodule), but in
+-- terminal_jk's layout, tools other than `ai` itself live in ../core instead.
+local function resolve_tool_lua()
+    local candidates = {
+        SCRIPT_DIR .. SEP .. ALIAS .. ".lua",
+        SCRIPT_DIR .. SEP .. ".." .. SEP .. "core" .. SEP .. ALIAS .. ".lua",
+    }
+    for _, c in ipairs(candidates) do
+        if exists(c) then return c end
+    end
+    return candidates[1]
+end
+
+local TOOL_LUA = resolve_tool_lua()
 
 -- ── platform detection ────────────────────────────────────────────────────────
 

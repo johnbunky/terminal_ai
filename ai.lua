@@ -149,8 +149,8 @@ local function load_pipes()
     if not raw or raw:match("^%s*$") then return {}, {} end
     local pipes = {}
     local order = {}
-    for line in (raw .. "\n"):gmatch("([^\n]*)\n") do
-        line = trim(line)
+    for raw_line in (raw .. "\n"):gmatch("([^\n]*)\n") do
+        local line = trim(raw_line)
         if line ~= "" and not line:match("^%-%-") then
             local name, template = line:match("^(%S+)\t(.+)$")
             if name and template then
@@ -270,8 +270,8 @@ local function read_config()
     local cfg = {}
     local raw = read_file(AIRC_PATH)
     if not raw then return cfg end
-    for line in (raw .. "\n"):gmatch("([^\n]*)\n") do
-        line = trim(line)
+    for raw_line in (raw .. "\n"):gmatch("([^\n]*)\n") do
+        local line = trim(raw_line)
         local k, v = line:match("^([%w_]+)=(.+)$")
         if k then cfg[k] = v end
     end
