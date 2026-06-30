@@ -264,7 +264,7 @@ end
 --   groq_model=llama-3.3-70b-versatile
 --   openrouter_model=deepseek/deepseek-v3.2
 
-local PROVIDERS = { "gemini", "claude", "openai", "groq", "openrouter" }
+local PROVIDERS = { "gemini", "claude", "openai", "groq", "openrouter", "ollama"}
 
 local function read_config()
     local cfg = {}
